@@ -35,10 +35,17 @@
 
   struct ether_header header;
 
-  int count_paket = 0;
+  int count_packet = 0;
   int count_ipv4  = 0;
   int count_ipv6  = 0;
   int count_arp   = 0;
+  int count_icmp  = 0;
+  int count_tcp   = 0;
+  int count_udp   = 0;
+  int count_http   = 0;
+  int count_dns   = 0;
+  int min_size_packet = 0;
+  int max_size_packet = 0;
 	
 
 
@@ -55,9 +62,9 @@ void printEthernet(struct ether_header *header){
 	printf("\nType: %04x",htons((*header).ether_type));
 }
 
-void countPaket(struct ether_header *header){
+void countpacket(struct ether_header *header){
 	//Fix this :@
-	count_paket++;
+	count_packet++;
 	if(htons((*header).ether_type) == ETHERTYPE_IP){
 		count_ipv4++;
 	}
@@ -70,10 +77,10 @@ void countPaket(struct ether_header *header){
 }
 
 void printStatistics(){
-	printf("\nPakets: %d",count_paket);
-	printf("\tPakets IPV4: %d",  (count_ipv4*100) / count_paket);
-	printf("\tPakets IPV6: %d",  (count_ipv6*100) / count_paket);
-	printf("\tPakets ARP: %d\n", (count_arp*100) / count_paket);
+	printf("\npackets: %d",count_packet);
+	printf("\tpackets IPV4: %d",  (count_ipv4*100) / count_packet);
+	printf("\tpackets IPV6: %d",  (count_ipv6*100) / count_packet);
+	printf("\tpackets ARP: %d\n", (count_arp*100) / count_packet);
 }
 int main(int argc,char *argv[])
 {
@@ -96,9 +103,15 @@ int main(int argc,char *argv[])
 	// recepcao de pacotes
 	while (1) {
 		struct ether_header current;
-   		recv(sockd,&current, sizeof(current), 0x0);
+		recv(sockd,(char *) &buff1, sizeof(buff1), 0x0);
+		memcpy(&current, &buff1, sizeof(current));
+		int i;		
+		for(i = 0; i <= BUFFSIZE ; i++){
+		printf("%02x " , buff1[i]);
+		}
+   		//recv(sockd,&current, sizeof(current), 0x0);
 		printEthernet(&current);
-		countPaket(&current);
+		countpacket(&current);
 		printStatistics();
 	}
 	
