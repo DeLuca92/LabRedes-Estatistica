@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <libgen.h>
 
+
 /* Diretorios: net, netinet, linux contem os includes que descrevem */
 /* as estruturas de dados do header dos protocolos   	  	        */
 
@@ -51,27 +52,28 @@ void printEthernet(struct ether_header *header){
 	for(i = 0; i <= 5 ; i++){
 		printf("%02x " , (*header).ether_shost[i]);
 	}
-	printf("\nType: %04x",(*header).ether_type);
-
+	printf("\nType: %04x",htons((*header).ether_type));
 }
 
 void countPaket(struct ether_header *header){
 	//Fix this :@
-	if((*header).ether_type == ETHERTYPE_IP){
+	count_paket++;
+	if(htons((*header).ether_type) == ETHERTYPE_IP){
 		count_ipv4++;
 	}
-	else if((*header).ether_type == ETHERTYPE_IPV6){
+	else if(htons((*header).ether_type) == ETHERTYPE_IPV6){
 		count_ipv6++;
 	}
-	else if((*header).ether_type == ETHERTYPE_ARP){
+	else if(htons((*header).ether_type) == ETHERTYPE_ARP){
 		count_arp++;
 	}
 }
+
 void printStatistics(){
 	printf("\nPakets: %d",count_paket);
-	printf("Pakets IPV4: %d",count_ipv4);
-	printf("Pakets IPV6: %d",count_ipv6);
-	printf("Pakets ARP: %d\n",count_arp);
+	printf("\tPakets IPV4: %d",  (count_ipv4*100) / count_paket);
+	printf("\tPakets IPV6: %d",  (count_ipv6*100) / count_paket);
+	printf("\tPakets ARP: %d\n", (count_arp*100) / count_paket);
 }
 int main(int argc,char *argv[])
 {
