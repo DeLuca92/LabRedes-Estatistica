@@ -34,6 +34,12 @@
 
   struct ether_header header;
 
+  int count_paket = 0;
+  int count_ipv4  = 0;
+  int count_ipv6  = 0;
+  int count_arp   = 0;
+	
+
 
 void printEthernet(struct ether_header *header){
 	int i;
@@ -45,9 +51,28 @@ void printEthernet(struct ether_header *header){
 	for(i = 0; i <= 5 ; i++){
 		printf("%02x " , (*header).ether_shost[i]);
 	}
-	printf("\nTipo: %04x\n", (*header).ether_type);
+	printf("\nType: %04x",(*header).ether_type);
+
 }
 
+void countPaket(struct ether_header *header){
+	//Fix this :@
+	if((*header).ether_type == ETHERTYPE_IP){
+		count_ipv4++;
+	}
+	else if((*header).ether_type == ETHERTYPE_IPV6){
+		count_ipv6++;
+	}
+	else if((*header).ether_type == ETHERTYPE_ARP){
+		count_arp++;
+	}
+}
+void printStatistics(){
+	printf("\nPakets: %d",count_paket);
+	printf("Pakets IPV4: %d",count_ipv4);
+	printf("Pakets IPV6: %d",count_ipv6);
+	printf("Pakets ARP: %d\n",count_arp);
+}
 int main(int argc,char *argv[])
 {
     /* Criacao do socket. Todos os pacotes devem ser construidos a partir do protocolo Ethernet. */
@@ -71,5 +96,8 @@ int main(int argc,char *argv[])
 		struct ether_header current;
    		recv(sockd,&current, sizeof(current), 0x0);
 		printEthernet(&current);
+		countPaket(&current);
+		printStatistics();
 	}
+	
 }
