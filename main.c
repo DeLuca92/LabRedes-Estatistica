@@ -35,10 +35,12 @@
 
   struct ether_header header;
 
+  int offset = 0;
   int count_packet = 0;
   int count_ipv4  = 0;
   int count_ipv6  = 0;
-  int count_arp   = 0;
+  int count_arp_request   = 0;
+  int count_arp_reply     = 0;
   int count_icmp  = 0;
   int count_tcp   = 0;
   int count_udp   = 0;
@@ -46,42 +48,99 @@
   int count_dns   = 0;
   int min_size_packet = 0;
   int max_size_packet = 0;
-	
 
-
-void printEthernet(struct ether_header *header){
+void printArp(struct ether_arp etherArp){
+	printf("\n--ARP HEADER--");
 	int i;
-	printf("\nMAC Destino: ");
-	for(i = 0; i <= 5 ; i++){
-		printf("%02x " , (*header).ether_dhost[i]);
+	printf("\n/* Format of hardware address.  */ %04x",htons(etherArp.ea_hdr.ar_hrd));
+    printf("\n/* Format of protocol address.  */ %04x",htons(etherArp.ea_hdr.ar_pro));
+    printf("\n/* Length of hardware address.  */ %02x",etherArp.ea_hdr.ar_hln);
+    printf("\n/* Length of protocol address.  */ %02x",etherArp.ea_hdr.ar_pln);
+    printf("\n/* ARP opcode (command).  */ %04x",htons(etherArp.ea_hdr.ar_op));
+
+	printf("\n--ARP DATA--");
+	printf("\n/* sender hardware address */ ");
+	for(i = 0; i < ETH_ALEN ; i++){
+		printf("%02x " , etherArp.arp_sha[i]);
 	}
-	printf("\nMAC Origem: ");
-	for(i = 0; i <= 5 ; i++){
-		printf("%02x " , (*header).ether_shost[i]);
+	printf("\n/* sender protocol address */ ");
+	for(i = 0; i < 4 ; i++){
+		printf("%02x " , etherArp.arp_spa[i]);
+	}		
+	printf("\n/* target hardware addres */ ");
+
+	for(i = 0; i < ETH_ALEN ; i++){
+		printf("%02x " , etherArp.arp_tha[i]);
 	}
-	printf("\nType: %04x",htons((*header).ether_type));
+	printf("\n/* target protocol address */ ");
+	for(i = 0; i < 4 ; i++){
+		printf("%02x " , etherArp.arp_tpa[i]);
+	}
 }
 
-void countpacket(struct ether_header *header){
+void printRaw(){
+		int i;
+		printf("\n");
+		for(i = 0; i <= BUFFSIZE ; i++){
+		printf("%02x " , buff1[i]);
+		}
+}
+
+void printEthernet(struct ether_header header){
+	printf("\n--ETHERNET HEADER--");
+	int i;
+	printf("\n/* destination eth addr */ ");
+	for(i = 0; i <= 5 ; i++){
+		printf("%02x " , header.ether_dhost[i]);
+	}
+	printf("\n/*source ether address*/ ");
+	for(i = 0; i <= 5 ; i++){
+		printf("%02x " , header.ether_shost[i]);
+	}
+	printf("\n/* packet type ID field	*/ %04x",htons(header.ether_type));
+}
+
+void countpacket(struct ether_header header){
 	//Fix this :@
 	count_packet++;
-	if(htons((*header).ether_type) == ETHERTYPE_IP){
+	if(htons(header.ether_type) == ETHERTYPE_IP){
 		count_ipv4++;
+
 	}
-	else if(htons((*header).ether_type) == ETHERTYPE_IPV6){
+	else if(htons(header.ether_type) == ETHERTYPE_IPV6){
 		count_ipv6++;
 	}
-	else if(htons((*header).ether_type) == ETHERTYPE_ARP){
-		count_arp++;
+	else if(htons(header.ether_type) == ETHERTYPE_ARP){
+
+		struct ether_arp etherArp;
+		memcpy(&etherArp, &buff1[offset] , sizeof(etherArp));
+		if (htons(etherArp.ea_hdr.ar_op) == ARPOP_REQUEST)
+		{
+			printf("\nARPOP_REQUEST");
+			count_arp_request++;
+		}
+		else if (htons(etherArp.ea_hdr.ar_op) ==ARPOP_REPLY)
+		{
+			printf("\nARPOP_REPLY");
+			count_arp_reply++;	
+		}
+
+		printEthernet(header);
+		printArp(etherArp);
+		printRaw();
+		offset += sizeof(struct ether_arp);
 	}
 }
 
 void printStatistics(){
 	printf("\npackets: %d",count_packet);
-	printf("\tpackets IPV4: %d",  (count_ipv4*100) / count_packet);
-	printf("\tpackets IPV6: %d",  (count_ipv6*100) / count_packet);
-	printf("\tpackets ARP: %d\n", (count_arp*100) / count_packet);
+	printf("\tpackets IPV4: %d",  count_ipv4);
+	printf("\tpackets IPV6: %d",  count_ipv6);
+	//printf("\tpackets ARP: %d\n", count_arp_reply);
 }
+
+
+
 int main(int argc,char *argv[])
 {
     /* Criacao do socket. Todos os pacotes devem ser construidos a partir do protocolo Ethernet. */
@@ -103,16 +162,16 @@ int main(int argc,char *argv[])
 	// recepcao de pacotes
 	while (1) {
 		struct ether_header current;
+		offset = 0;
+		//int offset = sizeof(ether_header);
 		recv(sockd,(char *) &buff1, sizeof(buff1), 0x0);
 		memcpy(&current, &buff1, sizeof(current));
-		int i;		
-		for(i = 0; i <= BUFFSIZE ; i++){
-		printf("%02x " , buff1[i]);
-		}
-   		//recv(sockd,&current, sizeof(current), 0x0);
-		printEthernet(&current);
-		countpacket(&current);
+
+		offset += sizeof(current);
+		//recv(sockd,&current, sizeof(current), 0x0);
+		countpacket(current);
 		printStatistics();
+		//printRaw();
 	}
 	
 }
