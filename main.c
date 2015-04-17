@@ -18,6 +18,8 @@
 #include <net/if.h>  //estrutura ifr
 #include <netinet/ether.h> //header ethernet
 #include <netinet/in.h> //definicao de protocolos
+#include <netinet/ip.h> //definicao de protocolos
+#include <netinet/ip_icmp.h> //definicao de protocolos
 #include <arpa/inet.h> //funcoes para manipulacao de enderecos IP
 
 #include <netinet/in_systm.h> //tipos de dados
@@ -27,7 +29,7 @@
 // Atencao!! Confira no /usr/include do seu sisop o nome correto
 // das estruturas de dados dos protocolos.
 
-  unsigned char buff1[BUFFSIZE]; // buffer de recepcao
+  unsigned char buff1[BUFFSIZE] ; // buffer de recepcao
 
   int sockd;
   int on;
@@ -41,7 +43,8 @@
   int count_ipv6  = 0;
   int count_arp_request   = 0;
   int count_arp_reply     = 0;
-  int count_icmp  = 0;
+  int count_icmp_reply  = 0;
+  int count_icmp_request  = 0;
   int count_tcp   = 0;
   int count_udp   = 0;
   int count_http   = 0;
@@ -100,10 +103,62 @@ void printEthernet(struct ether_header header){
 	printf("\n/* packet type ID field	*/ %04x",htons(header.ether_type));
 }
 
+
+
+void printIcmp(struct icmphdr icmp_header){
+	printf("\n--ICMP HEADER--\n");
+	printf("/* message type */ %x\n",icmp_header.type);
+	printf("/* type sub-code*/ %x\n",icmp_header.code);
+	printf("/* message type */ %x\n",htons(icmp_header.checksum));
+
+	printf("/* echo datagram */ \n");
+	printf("Sequence %x\n", htons(icmp_header.un.echo.id));
+	printf("Sequence %x\n", htons(icmp_header.un.echo.sequence));
+
+
+	printf("/* gateway address */ %x\n", icmp_header.un.gateway);
+
+
+	printf("/* path mtu discovery */\n");
+	printf("__glibc_reserved %x\n", htons(icmp_header.un.frag.__glibc_reserved));
+	printf("mtu %x\n", htons(icmp_header.un.frag.mtu));
+
+
+
+}
 void countpacket(struct ether_header header){
 	//Fix this :@
 	count_packet++;
+
+
 	if(htons(header.ether_type) == ETHERTYPE_IP){
+		struct iphdr ip_address;
+		memcpy(&ip_address, &buff1[offset] , sizeof(ip_address));
+
+		offset += sizeof(ip_address);
+
+		if (ip_address.protocol == IPPROTO_ICMP )
+		{
+			printf("Sou um IP/ICMP !!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+			
+			struct icmphdr icmp_header;
+			memcpy(&icmp_header, &buff1[offset] , sizeof(icmp_header));
+			offset += sizeof(icmp_header);
+			printEthernet(header);
+			printIcmp(icmp_header);
+			if (icmp_header.type == ICMP_ECHOREPLY)
+			{
+				printf("Sou um reply :P\n");
+				/* code */
+			}
+			else if(icmp_header.type == ICMP_ECHO){
+				printf("Sou um request :D\n");
+			}
+			
+			printRaw();
+			/* code */
+		}
+
 		count_ipv4++;
 
 	}
@@ -111,23 +166,24 @@ void countpacket(struct ether_header header){
 		count_ipv6++;
 	}
 	else if(htons(header.ether_type) == ETHERTYPE_ARP){
-
 		struct ether_arp etherArp;
 		memcpy(&etherArp, &buff1[offset] , sizeof(etherArp));
+		offset += sizeof(etherArp);
+
 		if (htons(etherArp.ea_hdr.ar_op) == ARPOP_REQUEST)
 		{
-			printf("\nARPOP_REQUEST");
+			//printf("\nARPOP_REQUEST");
 			count_arp_request++;
 		}
 		else if (htons(etherArp.ea_hdr.ar_op) ==ARPOP_REPLY)
 		{
-			printf("\nARPOP_REPLY");
+			//printf("\nARPOP_REPLY");
 			count_arp_reply++;	
 		}
 
-		printEthernet(header);
-		printArp(etherArp);
-		printRaw();
+		//printEthernet(header);
+		//printArp(etherArp);
+		//printRaw();
 		offset += sizeof(struct ether_arp);
 	}
 }
@@ -136,7 +192,8 @@ void printStatistics(){
 	printf("\npackets: %d",count_packet);
 	printf("\tpackets IPV4: %d",  count_ipv4);
 	printf("\tpackets IPV6: %d",  count_ipv6);
-	//printf("\tpackets ARP: %d\n", count_arp_reply);
+	printf("\tpackets ARP :  %d", count_arp_request);
+	printf("\tpackets ARP : %d\n", count_arp_reply);
 }
 
 
@@ -162,6 +219,8 @@ int main(int argc,char *argv[])
 	// recepcao de pacotes
 	while (1) {
 		struct ether_header current;
+		//Cleaning buffer...
+		memset(&buff1[0], 0, sizeof(buff1));
 		offset = 0;
 		//int offset = sizeof(ether_header);
 		recv(sockd,(char *) &buff1, sizeof(buff1), 0x0);
@@ -170,7 +229,7 @@ int main(int argc,char *argv[])
 		offset += sizeof(current);
 		//recv(sockd,&current, sizeof(current), 0x0);
 		countpacket(current);
-		printStatistics();
+		//printStatistics();
 		//printRaw();
 	}
 	
