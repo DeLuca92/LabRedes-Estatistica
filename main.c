@@ -248,7 +248,7 @@ void countpacket(struct ether_header header){
     
     offset += sizeof(ip_address);
     current_size_packet += (ip_address.ip_len);
-    printf("%d\n", ip_address.ip_len);
+    //printf("%d\n", ip_address.ip_len);
 
     if (ip_address.ip_p == IPPROTO_ICMP )
     {    
@@ -274,7 +274,7 @@ void countpacket(struct ether_header header){
         
         addPorta(udp_header.uh_sport);
         addPorta(udp_header.uh_dport);
-        printf("adding %x %x",udp_header.uh_sport,udp_header.uh_dport);
+       // printf("adding %x %x",udp_header.uh_sport,udp_header.uh_dport);
         if(htons(udp_header.uh_dport) == 0x35 || htons(udp_header.uh_sport) == 0x35) {
              count_dns++;       
         }
@@ -371,12 +371,12 @@ void printStatistics(){
   printf("\nPackets DNS: %d", count_dns);
   printf("\nPackets MIN Packet: %d", min_size_packet);
   printf("\nPackets MAX Packet: %d", max_size_packet);
-  printf("\nPackets AVG Packet: %lu\n", (total_size_packet / count_packet));
+  printf("\nPackets AVG Packet: %lu", (total_size_packet / count_packet));
   
-  printf("\nPortas utilizadas TCP: %d\n", pos_portas_mais_acessados);
+  printf("\nPortas utilizadas: %d\n", pos_portas_mais_acessados);
   printPortas(10);
 
-  printf("Ips utilizadas TCP: %d\n", pos_ip_mais_acessados);
+  printf("\nIps utilizados: %d\n", pos_ip_mais_acessados);
   printIps(10);
 }
 
