@@ -331,26 +331,18 @@ void printIps(int n){
     int i;
     
     for(i=0;i<n;i++){
-        int v1,v2,v3,v4,r;
-        v4 = mais_acessados_ip[i].ip.s_addr%256;
-        r =  mais_acessados_ip[i].ip.s_addr/256;
-        v3 = r%256;
-        r = r/256;
-        v2 = r%256;
-        r = r/256;
-        v1 = r%256;
 
-        printf("\nIp: %d.%d.%d.%d \n", v4,v3,v2,v1);
+        printf("\nIp: %s \n", inet_ntoa(mais_acessados_ip[i].ip));
         printf("Quantidade : %d",mais_acessados_ip[i].contador);        
     }
 }
 void printPortas(int n){
-    printf("%d portas mais utilizadas\n",n);
+    printf("\n%d portas mais utilizadas\n",n);
     int i;
     
     for(i=0;i<n;i++){
-        printf("\nPorta : %x\n",htons(mais_acessados_portas[i].porta));
-        printf("Quantidade : %d",mais_acessados_portas[i].contador);        
+        printf("Porta : %x\n",htons(mais_acessados_portas[i].porta));
+        printf("Quantidade : %d\n",mais_acessados_portas[i].contador);        
     }
 }
 
