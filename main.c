@@ -17,6 +17,7 @@
 
 #include <net/if.h>  //estrutura ifr
 #include <netinet/tcp.h>  //estrutura ifr
+#include <netinet/udp.h>  //estrutura ifr
 #include <netinet/ether.h> //header ethernet
 #include <netinet/in.h> //definicao de protocolos
 #include <netinet/ip.h> //definicao de protocolos
@@ -29,7 +30,22 @@
 
 // Atencao!! Confira no /usr/include do seu sisop o nome correto
 // das estruturas de dados dos protocolos.
+  struct porta_acessada {
+	uint16_t porta;
+	int contador;
+  };
+  
+  struct ip_acessado {
+	struct in_addr ip;
+	int contador;
+  };
 
+  struct ip_acessado        mais_acessados_ip[BUFFSIZE] ;
+  struct porta_acessada     mais_acessados_portas[BUFFSIZE] ;
+  
+  int pos_ip_mais_acessados = 0;
+  int pos_portas_mais_acessados = 0;
+  
   unsigned char buff1[BUFFSIZE] ; // buffer de recepcao
 
   int sockd;
@@ -57,7 +73,74 @@
   int min_size_packet = 1518;
   int max_size_packet = 0;
 
+//Implementar melhor, fazer pra os três vetores :D
+//  struct ip_acessado        mais_acessados_ip[BUFFSIZE] ;
+//  struct porta_acessada     mais_acessados_portas[BUFFSIZE] ;
+void bubble_sort()
+{
+  long c, d;
+  struct ip_acessado    t_ip;
+  struct porta_acessada t_porta;
+  for (c = 0 ; c < BUFFSIZE; c++)
+  {
+    for (d = 0 ; d < BUFFSIZE - c - 1; d++)
+    {
+      if ( mais_acessados_ip[d].contador <  mais_acessados_ip[d+1].contador)
+      {
+        /* Swapping */
+        t_ip        = mais_acessados_ip[d];
+        mais_acessados_ip[d]   = mais_acessados_ip[d+1];
+        mais_acessados_ip[d+1] = t_ip;
+      }
+      
+      if ( mais_acessados_portas[d].contador <  mais_acessados_portas[d+1].contador)
+      {
+        /* Swapping */
+        t_porta        = mais_acessados_portas[d];
+        mais_acessados_portas[d]   = mais_acessados_portas[d+1];
+        mais_acessados_portas[d+1] = t_porta;
+      }
+      
+    }
+  }
+}
+
+void addIp(struct in_addr ip_address){
+     //procura a porta
+    int i;
+    for(i=0;i<BUFFSIZE;i++){
+        if(mais_acessados_ip[i].ip.s_addr == ip_address.s_addr){
+            mais_acessados_ip[i].contador++;
+            return;
+        }
+    }
+    
+    struct ip_acessado ip_temp;
+    ip_temp.ip = ip_address;
+    ip_temp.contador = 1;
+    mais_acessados_ip[pos_ip_mais_acessados++] =  ip_temp; 
+}
+
+void addPorta( uint16_t porta){
+    //procura a porta
+    int i;
+    for(i=0;i<BUFFSIZE;i++){
+        if(mais_acessados_portas[i].porta == porta){
+            mais_acessados_portas[i].contador++;
+            return;
+        }
+    }
+    
+    struct porta_acessada porta_temp;
+    porta_temp.porta = porta;
+    porta_temp.contador = 1;
+    mais_acessados_portas[pos_portas_mais_acessados++] =  porta_temp; 
+}
+
+
+
 void printArp(struct ether_arp etherArp){
+
   printf("\n--ARP HEADER--");
   int i;
   printf("\n/* Format of hardware address.  */ %04x",htons(etherArp.ea_hdr.ar_hrd));
@@ -127,12 +210,30 @@ void printIcmp(struct icmphdr icmp_header){
   printf("/* path mtu discovery */\n");
   printf("__glibc_reserved %x\n", htons(icmp_header.un.frag.__glibc_reserved));
   printf("mtu %x\n", htons(icmp_header.un.frag.mtu));
+  
+}
 
-
+void printIpv4(struct ip ip_header){
+  printf("\n--IP HEADER--\n");
+  
+  
+  printf("/* header length */ %x\n",ip_header.ip_hl);
+  printf("/* version */ %x\n",ip_header.ip_v);
+  printf("/* total length */ %x\n",ip_header.ip_tos);
+  printf("/* header length */ %x\n",ip_header.ip_len);
+  printf("/* identification */ %x\n",ip_header.ip_id);
+ 
+  printf("/* fragment offset field */ %x\n",ip_header.ip_off);
+  printf("/* time to live */ %x\n",ip_header.ip_ttl);
+  printf("/* protocol */ %x\n",ip_header.ip_p);
+  printf("/* checksum */ %x\n",ip_header.ip_sum);
+  
+  printf("/* source address */ %x\n",ip_header.ip_src.s_addr);
+  printf("/* dest address */ %x\n",ip_header.ip_dst.s_addr);
 
 }
-void countpacket(struct ether_header header){
 
+void countpacket(struct ether_header header){
 
   //printEthernet(header);
   
@@ -142,7 +243,9 @@ void countpacket(struct ether_header header){
 
     struct ip ip_address;
     memcpy(&ip_address, &buff1[offset] , sizeof(ip_address));
-
+    
+    //printIpv4(ip_address);
+    
     offset += sizeof(ip_address);
     current_size_packet += (ip_address.ip_len);
     printf("%d\n", ip_address.ip_len);
@@ -163,19 +266,38 @@ void countpacket(struct ether_header header){
       }
       //printIcmp(icmp_header);
     }
-
+    else if(ip_address.ip_p == IPPROTO_UDP) {
+        count_udp++;
+        struct udphdr udp_header;
+        memcpy(&udp_header, &buff1[offset] , sizeof(udp_header));
+        offset+=sizeof(udp_header);
+        
+        addPorta(udp_header.uh_sport);
+        addPorta(udp_header.uh_dport);
+        printf("adding %x %x",udp_header.uh_sport,udp_header.uh_dport);
+        if(htons(udp_header.uh_dport) == 0x35 || htons(udp_header.uh_sport) == 0x35) {
+             count_dns++;       
+        }
+        
+    }
+    
     else if (ip_address.ip_p == IPPROTO_TCP){
       count_tcp++;
       
       struct tcphdr tcp_header;
       memcpy(&tcp_header, &buff1[offset] , sizeof(tcp_header));
       offset+=sizeof(tcp_header);
-
-      if(htons(tcp_header.th_dport) == 0x50 || htons(tcp_header.th_sport) == 0x50) { 
+      
+      addPorta(tcp_header.th_sport);
+      addPorta(tcp_header.th_dport);
+      
+      
+      if(htons(tcp_header.th_dport) == 0x50 || htons(tcp_header.th_sport) == 0x50) {
               count_http++;
       }else if(htons(tcp_header.th_dport) == 0x35 || htons(tcp_header.th_sport) == 0x35) {
               count_dns++;
       }else if(htons(tcp_header.th_dport) == 0x1bb || htons(tcp_header.th_sport) == 0x1bb){
+              addIp(ip_address.ip_dst);
               count_https++;
       }else if(htons(tcp_header.th_dport) == 0x17|| htons(tcp_header.th_sport) == 0x17){
               count_telnet++;
@@ -203,23 +325,59 @@ void countpacket(struct ether_header header){
   }
 }
 
+
+void printIps(int n){
+    printf("%d ips mais utilizadas\n",n);
+    int i;
+    
+    for(i=0;i<n;i++){
+        int v1,v2,v3,v4,r;
+        v4 = mais_acessados_ip[i].ip.s_addr%256;
+        r =  mais_acessados_ip[i].ip.s_addr/256;
+        v3 = r%256;
+        r = r/256;
+        v2 = r%256;
+        r = r/256;
+        v1 = r%256;
+
+        printf("\nIp: %d.%d.%d.%d \n", v4,v3,v2,v1);
+        printf("Quantidade : %d",mais_acessados_ip[i].contador);        
+    }
+}
+void printPortas(int n){
+    printf("%d portas mais utilizadas\n",n);
+    int i;
+    
+    for(i=0;i<n;i++){
+        printf("\nPorta : %x\n",htons(mais_acessados_portas[i].porta));
+        printf("Quantidade : %d",mais_acessados_portas[i].contador);        
+    }
+}
+
 void printStatistics(){
   printf("\nPackets Total: %d",count_packet);
-  printf("\nPackets IPV4: %.2f %%", ((float)(100* count_ipv4)/count_packet));
+  printf("\nPackets IPV4: %.2f %% (%d)", ((float)(100* count_ipv4)/count_packet),count_ipv4);
   
-  printf("\nPackets ARP Request :  %.2f %%", ((float)(100*count_arp_request)/count_packet));
-  printf("\nPackets ARP Reply: %.2f %%", ((float)(100*count_arp_reply)/count_packet));
+  printf("\nPackets ARP Request :  %.2f %% (%d)", ((float)(100*count_arp_request)/count_packet),count_arp_request);
+  printf("\nPackets ARP Reply: %.2f %% (%d)", ((float)(100*count_arp_reply)/count_packet),count_arp_reply);
 
-  printf("\nPackets ICMP Request: %d", count_icmp_request);
-  printf("\nPackets ICMP Reply: %d",   count_icmp_reply);
+  printf("\nPackets ICMP Request: %.2f %% (%d)", ((float)(100*count_icmp_request)/count_packet),count_icmp_request);
+  printf("\nPackets ICMP Reply: %.2f %% (%d)",  ((float)(100*count_icmp_reply)/count_packet),count_icmp_reply); 
 
   printf("\nPackets TCP: %d", count_tcp);
   printf("\nPackets HTTP: %d", count_http);
   printf("\nPackets HTTPs: %d", count_https);
+  printf("\nPackets Telnet: %d", count_telnet);
   printf("\nPackets DNS: %d", count_dns);
   printf("\nPackets MIN Packet: %d", min_size_packet);
-  printf("\nPackets MAX Packet: %d\n", max_size_packet);
+  printf("\nPackets MAX Packet: %d", max_size_packet);
   printf("\nPackets AVG Packet: %lu\n", (total_size_packet / count_packet));
+  
+  printf("\nPortas utilizadas TCP: %d\n", pos_portas_mais_acessados);
+  printPortas(10);
+
+  printf("Ips utilizadas TCP: %d\n", pos_ip_mais_acessados);
+  printIps(10);
 }
 
 int loop(){
@@ -248,17 +406,18 @@ int loop(){
       countpacket(current);
       if (current_size_packet > sizeof(current))
       {
-         count_packet++;
+        count_packet++;
+        total_size_packet += current_size_packet;
         if (current_size_packet < min_size_packet){
           min_size_packet = current_size_packet;
         }
         if (current_size_packet > max_size_packet){
           max_size_packet = current_size_packet;
         }
-        total_size_packet += current_size_packet;
+
       }      
     }
-
+    bubble_sort();
     printStatistics();
 
     return 0;
@@ -276,7 +435,7 @@ int main(int argc,char *argv[])
     }
 
     // O procedimento abaixo eh utilizado para "setar" a interface em modo promiscuo
-    strcpy(ifr.ifr_name, "eth0");
+    strcpy(ifr.ifr_name, "wlan0");
     if(ioctl(sockd, SIOCGIFINDEX, &ifr) < 0)
       printf("erro no ioctl!");
     ioctl(sockd, SIOCGIFFLAGS, &ifr);
