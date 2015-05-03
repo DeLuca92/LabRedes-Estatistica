@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <libgen.h>
 
+
 /* Diretorios: net, netinet, linux contem os includes que descrevem */
 /* as estruturas de dados do header dos protocolos                */
 
@@ -76,6 +77,26 @@
 //Implementar melhor, fazer pra os três vetores :D
 //  struct ip_acessado        mais_acessados_ip[BUFFSIZE] ;
 //  struct porta_acessada     mais_acessados_portas[BUFFSIZE] ;
+
+
+
+int cmpfuncIp (const void * a, const void * b)
+{
+   struct ip_acessado  *ia  = (struct ip_acessado *)a;
+   struct ip_acessado  *ib  = (struct ip_acessado *)b;
+   
+   return ( ib->contador - ia->contador  );
+}
+
+int cmpfuncPorta (const void * a, const void * b)
+{
+   struct porta_acessada  *ia  = (struct porta_acessada *)a;
+   struct porta_acessada  *ib  = (struct porta_acessada *)b;
+   
+   return ( ib->contador - ia->contador  );
+}
+
+
 void bubble_sort()
 {
   long c, d;
@@ -332,8 +353,8 @@ void printIps(int n){
     
     for(i=0;i<n;i++){
 
-        printf("\nIp: %s \n", inet_ntoa(mais_acessados_ip[i].ip));
-        printf("Quantidade : %d",mais_acessados_ip[i].contador);        
+        printf("Ip: %s \n", inet_ntoa(mais_acessados_ip[i].ip));
+        printf("Quantidade : %d\n",mais_acessados_ip[i].contador);        
     }
 }
 void printPortas(int n){
@@ -409,7 +430,11 @@ int loop(){
 
       }      
     }
-    bubble_sort();
+    //bubble_sort();
+    //Troquei o método de sort para o qsort :D
+    qsort(mais_acessados_ip, pos_ip_mais_acessados, sizeof(struct ip_acessado), cmpfuncIp);
+    qsort(mais_acessados_portas, pos_portas_mais_acessados, sizeof(struct porta_acessada), cmpfuncPorta);
+    
     printStatistics();
 
     return 0;
