@@ -346,14 +346,11 @@ void countpacket(struct ether_header header){
   }
 }
 
-
 void printIps(int n){
-    printf("%d ips mais utilizadas\n",n);
+    printf("\n%d ips mais utilizadas\n",n);
     int i;
-    
     for(i=0;i<n;i++){
-
-        printf("Ip: %s \n", inet_ntoa(mais_acessados_ip[i].ip));
+        printf("Ip: %s \t\t", inet_ntoa(mais_acessados_ip[i].ip));
         printf("Quantidade : %d\n",mais_acessados_ip[i].contador);        
     }
 }
@@ -362,7 +359,7 @@ void printPortas(int n){
     int i;
     
     for(i=0;i<n;i++){
-        printf("Porta : %x\n",htons(mais_acessados_portas[i].porta));
+        printf("Porta : %x\t\t",htons(mais_acessados_portas[i].porta));
         printf("Quantidade : %d\n",mais_acessados_portas[i].contador);        
     }
 }
@@ -387,10 +384,20 @@ void printStatistics(){
   printf("\nPackets AVG Packet: %lu", (total_size_packet / count_packet));
   
   printf("\nPortas utilizadas: %d\n", pos_portas_mais_acessados);
-  printPortas(10);
-
+  
+  if(pos_portas_mais_acessados < 10){
+    printPortas(pos_ip_mais_acessados);
+  }else{
+    printPortas(10);
+  }
+  
   printf("\nIps utilizados: %d\n", pos_ip_mais_acessados);
-  printIps(10);
+  if(pos_ip_mais_acessados < 10){
+    printIps(pos_ip_mais_acessados);
+  }else{
+    printIps(10);
+  }
+   
 }
 
 int loop(){
