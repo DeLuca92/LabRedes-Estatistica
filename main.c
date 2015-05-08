@@ -11,6 +11,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <libgen.h>
+#include <netdb.h>
 
 
 /* Diretorios: net, netinet, linux contem os includes que descrevem */
@@ -96,36 +97,6 @@ int cmpfuncPorta (const void * a, const void * b)
    return ( ib->contador - ia->contador  );
 }
 
-
-void bubble_sort()
-{
-  long c, d;
-  struct ip_acessado    t_ip;
-  struct porta_acessada t_porta;
-  for (c = 0 ; c < BUFFSIZE; c++)
-  {
-    for (d = 0 ; d < BUFFSIZE - c - 1; d++)
-    {
-      if ( mais_acessados_ip[d].contador <  mais_acessados_ip[d+1].contador)
-      {
-        /* Swapping */
-        t_ip        = mais_acessados_ip[d];
-        mais_acessados_ip[d]   = mais_acessados_ip[d+1];
-        mais_acessados_ip[d+1] = t_ip;
-      }
-      
-      if ( mais_acessados_portas[d].contador <  mais_acessados_portas[d+1].contador)
-      {
-        /* Swapping */
-        t_porta        = mais_acessados_portas[d];
-        mais_acessados_portas[d]   = mais_acessados_portas[d+1];
-        mais_acessados_portas[d+1] = t_porta;
-      }
-      
-    }
-  }
-}
-
 void addIp(struct in_addr ip_address){
      //procura a porta
     int i;
@@ -140,6 +111,7 @@ void addIp(struct in_addr ip_address){
     ip_temp.ip = ip_address;
     ip_temp.contador = 1;
     mais_acessados_ip[pos_ip_mais_acessados++] =  ip_temp; 
+    
 }
 
 void addPorta( uint16_t porta){
@@ -351,7 +323,7 @@ void printIps(int n){
     int i;
     for(i=0;i<n;i++){
         printf("Ip: %s \t\t", inet_ntoa(mais_acessados_ip[i].ip));
-        printf("Quantidade : %d\n",mais_acessados_ip[i].contador);        
+        printf("Quantidade : %d\n",mais_acessados_ip[i].contador); 
     }
 }
 void printPortas(int n){
@@ -400,6 +372,12 @@ void printStatistics(){
    
 }
 
+void clearScreen()
+{
+  const char* CLEAR_SCREE_ANSI = "\e[1;1H\e[2J";
+  write(STDOUT_FILENO,CLEAR_SCREE_ANSI,12);
+}
+
 int loop(){
 
     struct pollfd pfd;
@@ -435,14 +413,15 @@ int loop(){
           max_size_packet = current_size_packet;
         }
 
-      }      
+      }
+      
+      //Sort das listas
+      qsort(mais_acessados_ip, pos_ip_mais_acessados, sizeof(struct ip_acessado), cmpfuncIp);
+      qsort(mais_acessados_portas, pos_portas_mais_acessados, sizeof(struct porta_acessada), cmpfuncPorta);
+  
+      printStatistics();
+      printf("\033[2J\033[1;1H");
     }
-    //bubble_sort();
-    //Troquei o método de sort para o qsort :D
-    qsort(mais_acessados_ip, pos_ip_mais_acessados, sizeof(struct ip_acessado), cmpfuncIp);
-    qsort(mais_acessados_portas, pos_portas_mais_acessados, sizeof(struct porta_acessada), cmpfuncPorta);
-    
-    printStatistics();
 
     return 0;
 }
@@ -458,10 +437,20 @@ int main(int argc,char *argv[])
        exit(1);
     }
 
+      
+    char interface[10];
+    printf("Set interface mode: ");
+    scanf("%s",interface);
+    
+    strcpy(ifr.ifr_name, interface);
+    
+    if(ioctl(sockd, SIOCGIFINDEX, &ifr) < 0){
+      printf("erro no ioctl!\n");
+      printf("Favor verificar a interface selecionada!!\n");
+      return 0;
+    }
+    
     // O procedimento abaixo eh utilizado para "setar" a interface em modo promiscuo
-    strcpy(ifr.ifr_name, "wlan0");
-    if(ioctl(sockd, SIOCGIFINDEX, &ifr) < 0)
-      printf("erro no ioctl!");
     ioctl(sockd, SIOCGIFFLAGS, &ifr);
     ifr.ifr_flags |= IFF_PROMISC;
     ioctl(sockd, SIOCSIFFLAGS, &ifr);
